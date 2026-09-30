@@ -6,3 +6,5 @@ Instagram: https://www.instagram.com/beuleup_shopping/
 TikTok: https://www.tiktok.com/@beuleuphumanblendhair
 
 La version PRO avec comptes admin sécurisés, base de données, stocks partagés et avis vérifiés nécessite un backend.
+
+<!-- GitHub Pages deployment refresh -->
