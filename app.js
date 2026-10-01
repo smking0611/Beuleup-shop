@@ -85,10 +85,10 @@ async function loadProducts(){
   render();
 }
 
-window.add=function(id){
-  let i=cart.find(x=>String(x.id)===String(id)),p=P.find(x=>String(x.id)===String(id));
+window.add=function(id,variant=null){
+  let i=cart.find(x=>String(x.id)===String(id)&&String(x.variant||"")===String(variant||"")),p=P.find(x=>String(x.id)===String(id));
   if(!p||p.s<=0)return;
-  if(i){if(i.q<p.s)i.q++}else cart.push({id,q:1});
+  if(i){if(i.q<p.s)i.q++}else cart.push({id,q:1,variant:variant||null});
   localStorage.beuleupCart=JSON.stringify(cart);
   update();
 }
@@ -100,7 +100,7 @@ function update(){
     if(!p)return "";
     let v=p.x||p.p;
     total+=v*x.q;n+=x.q;
-    return '<div class="cartline"><span>'+p.n+" × "+x.q+'</span><b>'+money(v*x.q)+'</b></div>';
+    return '<div class="cartline"><span>'+p.n+(x.variant?" — "+x.variant:"")+" × "+x.q+'</span><b>'+money(v*x.q)+'</b></div>';
   }).join("")||"<p>Votre panier est vide.</p>";
   $("#count").textContent=n;
   $("#total").textContent=money(total);
@@ -128,7 +128,7 @@ $("#order").onclick=()=>{
     let p=P.find(y=>String(y.id)===String(x.id));
     if(!p)return "";
     let v=p.x||p.p;
-    return "• "+p.n+" x"+x.q+" — "+money(v*x.q);
+    return "• "+p.n+(x.variant?" — "+x.variant:"")+" x"+x.q+" — "+money(v*x.q);
   }).filter(Boolean).join("\n");
   let t=cart.reduce((a,x)=>{
     let p=P.find(y=>String(y.id)===String(x.id));
