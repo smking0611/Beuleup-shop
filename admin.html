@@ -70,10 +70,13 @@ input:focus,select:focus,textarea:focus{border-color:var(--gold)}
           <option value="maquillage">Maquillage & Gloss</option><option value="accessoires">Accessoires</option>
           <option value="mode">Mode</option><option value="beaute">Beauté</option>
         </select>
-        <label>Photo du produit</label>
+        <label>Photo principale du produit</label>
         <input id="imageFile" type="file" accept="image/*">
-        <div class="hint">Choisis une photo depuis ton téléphone ou ton PC. Elle sera automatiquement envoyée au stockage du site.</div>
+        <div class="hint">Ajoute la photo principale. Tu pourras ensuite ajouter les différentes couleurs ci-dessous.</div>
         <input id="image" type="hidden">
+        <label>Couleurs / variantes</label>
+        <div id="variants"></div>
+        <button class="btn" type="button" id="addVariant" style="width:100%;margin-top:10px">+ Ajouter une couleur</button>
       </div>
       <div>
         <label>Prix normal (FCFA)</label><input id="price" type="number" min="0" required>
@@ -101,9 +104,17 @@ const SUPABASE_KEY="sb_publishable_861DNYlH0UF9LwTov-tHpQ_IyylUnx7";
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let editingId=null;
 let currentImageUrl=null;
+let variants=[];
 
 const $=id=>document.getElementById(id);
 const money=n=>new Intl.NumberFormat("fr-FR").format(n)+" FCFA";
+
+function renderVariants(){
+  $("variants").innerHTML=variants.map((v,i)=>'<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin:8px 0"><input placeholder="Couleur (ex. Noir)" value="'+escapeHtml(v.name||"")+'" data-variant-name="'+i+'"><input type="file" accept="image/*" data-variant-file="'+i+'"><button type="button" class="btn danger" data-variant-remove="'+i+'">×</button></div>').join("");
+}
+$("addVariant").onclick=()=>{variants.push({name:"",image_url:""});renderVariants()};
+document.addEventListener("input",e=>{if(e.target.dataset.variantName!==undefined)variants[Number(e.target.dataset.variantName)].name=e.target.value});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-variant-remove]");if(b){variants.splice(Number(b.dataset.variantRemove),1);renderVariants()}});
 
 function msg(el,text){el.textContent=text;setTimeout(()=>{if(el.textContent===text)el.textContent=""},4000)}
 
@@ -156,15 +167,22 @@ async function editProduct(id){
   editingId=id;
   $("formTitle").textContent="Modifier le produit";
   $("name").value=data.name;$("description").value=data.description||"";$("category").value=data.category;
-  $("image").value=data.image_url||"";currentImageUrl=data.image_url||null;$("imageFile").value="";$("price").value=data.price_fcfa;$("promo").value=data.promo_price_fcfa??"";
+  $("image").value=data.image_url||"";currentImageUrl=data.image_url||null;$("imageFile").value="";variants=Array.isArray(data.variants)?data.variants:[];renderVariants();$("price").value=data.price_fcfa;$("promo").value=data.promo_price_fcfa??"";
   $("stock").value=data.stock;$("rating").value=data.rating??0;$("isNew").checked=!!data.is_new;
   $("save").textContent="Enregistrer les modifications";$("cancel").classList.remove("hidden");
   scrollTo({top:0,behavior:"smooth"});
 }
 
 $("cancel").onclick=resetForm;
-function resetForm(){editingId=null;currentImageUrl=null;$("productForm").reset();$("image").value="";$("rating").value=0;$("formTitle").textContent="Ajouter un produit";$("save").textContent="Ajouter le produit";$("cancel").classList.add("hidden")}
+function resetForm(){editingId=null;currentImageUrl=null;variants=[];$("productForm").reset();$("image").value="";renderVariants();$("rating").value=0;$("formTitle").textContent="Ajouter un produit";$("save").textContent="Ajouter le produit";$("cancel").classList.add("hidden")}
 
+async function saveVariants(){
+  for(let i=0;i<variants.length;i++){
+    const file=$('[data-variant-file="'+i+'"]').files[0];
+    if(file)variants[i].image_url=await uploadProductImage(file);
+  }
+  return variants.filter(v=>v.name&&v.image_url);
+}
 async function uploadProductImage(file){
   if(!file)return currentImageUrl||null;
   const ext=(file.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"");
@@ -184,7 +202,7 @@ $("productForm").addEventListener("submit",async e=>{
       name:$("name").value.trim(),description:$("description").value.trim()||null,category:$("category").value,
       image_url:imageUrl,price_fcfa:Number($("price").value),
       promo_price_fcfa:$("promo").value?Number($("promo").value):null,stock:Number($("stock").value),
-      rating:Number($("rating").value)||0,is_new:$("isNew").checked
+      rating:Number($("rating").value)||0,is_new:$("isNew").checked,variants:await saveVariants()
     };
     let result=editingId?await db.from("products").update(payload).eq("id",editingId):await db.from("products").insert(payload);
     if(result.error)throw result.error;
@@ -200,6 +218,7 @@ async function deleteProduct(id){
   if(error){alert("Impossible de supprimer : "+error.message);return}
   loadProducts();
 }
+renderVariants();
 boot();
 </script>
 </body>
