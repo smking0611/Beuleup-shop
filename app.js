@@ -42,7 +42,6 @@ function render(){
   $("#shopGrid").innerHTML=f.map(card).join("")||"<p>Aucun produit trouvé.</p>";
   $("#newGrid").innerHTML=P.filter(p=>p.new).slice(0,4).map(card).join("");
   $("#offerGrid").innerHTML=P.filter(p=>p.x).map(card).join("");
-  document.querySelectorAll(".add-btn").forEach(b=>b.addEventListener("click",()=>add(b.dataset.productId)));
   update();
 }
 
@@ -60,7 +59,7 @@ async function loadProducts(){
   render();
 }
 
-function add(id){
+window.add=function(id){
   let i=cart.find(x=>String(x.id)===String(id)),p=P.find(x=>String(x.id)===String(id));
   if(!p||p.s<=0)return;
   if(i){if(i.q<p.s)i.q++}else cart.push({id,q:1});
@@ -81,6 +80,12 @@ function update(){
   $("#total").textContent=money(total);
 }
 
+document.addEventListener("click",e=>{
+  const b=e.target.closest(".add-btn");
+  if(!b||b.disabled)return;
+  e.preventDefault();
+  add(b.dataset.productId);
+});
 $("#search").oninput=render;
 $("#category").onchange=render;
 $("#price").onchange=render;
