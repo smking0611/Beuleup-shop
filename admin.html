@@ -70,8 +70,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--gold)}
           <option value="maquillage">Maquillage & Gloss</option><option value="accessoires">Accessoires</option>
           <option value="mode">Mode</option><option value="beaute">Beauté</option>
         </select>
-        <label>URL de la photo</label><input id="image" placeholder="https://...">
-        <div class="hint">On pourra ajouter un vrai bouton d’upload photo ensuite.</div>
+        <label>Photo du produit</label>
+        <input id="imageFile" type="file" accept="image/*">
+        <div class="hint">Choisis une photo depuis ton téléphone ou ton PC. Elle sera automatiquement envoyée au stockage du site.</div>
+        <input id="image" type="hidden">
       </div>
       <div>
         <label>Prix normal (FCFA)</label><input id="price" type="number" min="0" required>
@@ -98,6 +100,7 @@ const SUPABASE_URL="https://vahlfkslvpanftvdlgqg.supabase.co";
 const SUPABASE_KEY="sb_publishable_861DNYlH0UF9LwTov-tHpQ_IyylUnx7";
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let editingId=null;
+let currentImageUrl=null;
 
 const $=id=>document.getElementById(id);
 const money=n=>new Intl.NumberFormat("fr-FR").format(n)+" FCFA";
@@ -153,29 +156,42 @@ async function editProduct(id){
   editingId=id;
   $("formTitle").textContent="Modifier le produit";
   $("name").value=data.name;$("description").value=data.description||"";$("category").value=data.category;
-  $("image").value=data.image_url||"";$("price").value=data.price_fcfa;$("promo").value=data.promo_price_fcfa??"";
+  $("image").value=data.image_url||"";currentImageUrl=data.image_url||null;$("imageFile").value="";$("price").value=data.price_fcfa;$("promo").value=data.promo_price_fcfa??"";
   $("stock").value=data.stock;$("rating").value=data.rating??0;$("isNew").checked=!!data.is_new;
   $("save").textContent="Enregistrer les modifications";$("cancel").classList.remove("hidden");
   scrollTo({top:0,behavior:"smooth"});
 }
 
 $("cancel").onclick=resetForm;
-function resetForm(){editingId=null;$("productForm").reset();$("rating").value=0;$("formTitle").textContent="Ajouter un produit";$("save").textContent="Ajouter le produit";$("cancel").classList.add("hidden")}
+function resetForm(){editingId=null;currentImageUrl=null;$("productForm").reset();$("image").value="";$("rating").value=0;$("formTitle").textContent="Ajouter un produit";$("save").textContent="Ajouter le produit";$("cancel").classList.add("hidden")}
 
+async function uploadProductImage(file){
+  if(!file)return currentImageUrl||null;
+  const ext=(file.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"");
+  const path="products/"+crypto.randomUUID()+"."+ext;
+  const {error}=await db.storage.from("product-images").upload(path,file,{cacheControl:"3600",upsert:false});
+  if(error)throw error;
+  const {data}=db.storage.from("product-images").getPublicUrl(path);
+  return data.publicUrl;
+}
 $("productForm").addEventListener("submit",async e=>{
   e.preventDefault();
-  const payload={
-    name:$("name").value.trim(),description:$("description").value.trim()||null,category:$("category").value,
-    image_url:$("image").value.trim()||null,price_fcfa:Number($("price").value),
-    promo_price_fcfa:$("promo").value?Number($("promo").value):null,stock:Number($("stock").value),
-    rating:Number($("rating").value)||0,is_new:$("isNew").checked
-  };
   $("save").disabled=true;
-  let result=editingId?await db.from("products").update(payload).eq("id",editingId):await db.from("products").insert(payload);
-  $("save").disabled=false;
-  if(result.error){msg($("formMsg"),"Erreur : "+result.error.message);return}
-  msg($("formMsg"),editingId?"Produit modifié.":"Produit ajouté.");
-  resetForm();loadProducts();
+  try{
+    const file=$("imageFile").files[0];
+    const imageUrl=await uploadProductImage(file);
+    const payload={
+      name:$("name").value.trim(),description:$("description").value.trim()||null,category:$("category").value,
+      image_url:imageUrl,price_fcfa:Number($("price").value),
+      promo_price_fcfa:$("promo").value?Number($("promo").value):null,stock:Number($("stock").value),
+      rating:Number($("rating").value)||0,is_new:$("isNew").checked
+    };
+    let result=editingId?await db.from("products").update(payload).eq("id",editingId):await db.from("products").insert(payload);
+    if(result.error)throw result.error;
+    msg($("formMsg"),editingId?"Produit modifié.":"Produit ajouté.");
+    resetForm();loadProducts();
+  }catch(err){msg($("formMsg"),"Erreur : "+(err.message||"Upload impossible."))}
+  finally{$("save").disabled=false}
 });
 
 async function deleteProduct(id){
