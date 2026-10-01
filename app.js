@@ -10,10 +10,28 @@ const stars=r=>"★".repeat(Math.round(r))+"☆".repeat(5-Math.round(r));
 
 function card(p){
   let q=p.x||p.p;
-  let visual=p.img?'<img src="'+p.img+'" alt="'+p.n+'">':(p.e||"🛍️");
-  return '<article class="card"><div class="pic">'+visual+'</div><div class="body"><div class="cat">'+p.c+'</div><h3>'+p.n+'</h3><div class="stars">'+stars(p.r)+' ('+p.r+')</div><div class="price">'+(p.x?'<span class="old">'+money(p.p)+'</span>':"")+money(q)+'</div><div class="stock">'+(p.s>0?"Stock : "+p.s:"Rupture de stock")+'</div><button onclick="add("'+p.id+'")" '+(p.s<=0?"disabled":"")+'>'+(p.s>0?"Ajouter au panier":"Indisponible")+'</button></div></article>';
+  let visual=p.img
+    ? '<button class="image-open" type="button" onclick="openImage('+JSON.stringify(p.img)+','+JSON.stringify(p.n)+')" aria-label="Agrandir '+p.n+'"><img src="'+p.img+'" alt="'+p.n+'"><span>⌕</span></button>'
+    : (p.e||"🛍️");
+  return '<article class="card"><div class="pic">'+visual+'</div><div class="body"><div class="cat">'+p.c+'</div><h3>'+p.n+'</h3><div class="stars">'+stars(p.r)+' ('+p.r+')</div><div class="price">'+(p.x?'<span class="old">'+money(p.p)+'</span>':"")+money(q)+'</div><div class="stock">'+(p.s>0?"Stock : "+p.s:"Rupture de stock")+'</div><button onclick="add(\''+p.id+'\')" '+(p.s<=0?"disabled":"")+'>'+(p.s>0?"Ajouter au panier":"Indisponible")+'</button></div></article>';
 }
 
+
+function openImage(src,title){
+  let m=document.getElementById("imageViewer");
+  if(!m){
+    m=document.createElement("div");
+    m.id="imageViewer";
+    m.innerHTML='<button class="image-viewer-close" type="button" aria-label="Fermer">×</button><div class="image-viewer-inner"><img id="imageViewerImg" alt=""><div id="imageViewerTitle"></div></div>';
+    document.body.appendChild(m);
+    m.onclick=e=>{if(e.target===m||e.target.classList.contains("image-viewer-close"))m.classList.remove("show")};
+    document.addEventListener("keydown",e=>{if(e.key==="Escape")m.classList.remove("show")});
+  }
+  document.getElementById("imageViewerImg").src=src;
+  document.getElementById("imageViewerImg").alt=title;
+  document.getElementById("imageViewerTitle").textContent=title;
+  m.classList.add("show");
+}
 function render(){
   let q=$("#search").value.toLowerCase(),c=$("#category").value,z=$("#price").value;
   let f=P.filter(p=>(!q||p.n.toLowerCase().includes(q))&&(c==="all"||p.c===c)).filter(p=>{
@@ -89,3 +107,16 @@ $("#order").onclick=()=>{
 };
 $("#lang").onclick=()=>{$("#lang").textContent=$("#lang").textContent==="EN"?"FR":"EN"};
 loadProducts();
+const imageViewerStyle=document.createElement("style");
+imageViewerStyle.textContent=`
+.image-open{position:relative;width:100%;height:100%;padding:0;border:0;background:none;cursor:zoom-in;display:block}
+.image-open img{width:100%;height:100%;object-fit:cover;display:block}
+.image-open span{position:absolute;right:8px;bottom:8px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.72);color:#fff;font-size:20px}
+#imageViewer{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;padding:30px;cursor:zoom-out}
+#imageViewer.show{display:flex}
+.image-viewer-inner{max-width:95vw;max-height:95vh;text-align:center}
+#imageViewerImg{max-width:95vw;max-height:85vh;object-fit:contain;border-radius:12px;box-shadow:0 10px 50px rgba(0,0,0,.7)}
+#imageViewerTitle{margin-top:12px;color:#fff;font-weight:700;font-size:16px}
+.image-viewer-close{position:fixed;top:18px;right:22px;width:44px;height:44px;border:0;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;font-size:32px;line-height:1;cursor:pointer}
+`;
+document.head.appendChild(imageViewerStyle);
