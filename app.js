@@ -22,22 +22,33 @@ function inspectProduct(id){
     m=document.createElement("div");
     m.id="productViewer";
     document.body.appendChild(m);
-    m.addEventListener("click",e=>{if(e.target===m||e.target.closest(".product-close"))m.classList.remove("show")});
+    m.addEventListener("click",e=>{
+      if(e.target===m||e.target.closest(".product-close"))m.classList.remove("show");
+    });
   }
-  const firstImage=p.img||(p.v[0]&&p.v[0].image_url)||"";
-  m.innerHTML='<div class="product-modal"><button class="product-close" type="button">×</button><img id="inspectImg" src="'+firstImage+'" alt="'+p.n+'"><div class="inspect-content"><div class="cat">'+p.c+'</div><h2>'+p.n+'</h2><div class="stars">'+stars(p.r)+' ('+p.r+')</div><p class="inspect-desc">'+(p.d||"Aucune description disponible.")+'</p>'+(p.v.length?'<strong>Couleur :</strong><div class="variant-list">'+p.v.map((v,i)=>'<button type="button" class="variant-btn '+(i===0?"selected":"")+'" data-variant-index="'+i+'">'+v.name+'</button>').join("")+'</div>':"")+'<button type="button" class="gold inspect-add" '+(p.s<=0?"disabled":"")+'>'+(p.s>0?"Ajouter au panier":"Indisponible")+'</button></div></div>';
+  const images=[...(p.img?[{name:"Principal",image_url:p.img}]:[]),...(p.v||[])].filter(v=>v.image_url);
+  let current=0;
+  const renderViewer=()=>{
+    const v=images[current];
+    m.innerHTML='<div class="product-modal"><button class="product-close" type="button">×</button><div class="inspect-gallery"><button type="button" class="gallery-arrow prev" aria-label="Précédent">‹</button><img id="inspectImg" src="'+v.image_url+'" alt="'+p.n+'"><button type="button" class="gallery-arrow next" aria-label="Suivant">›</button><div class="gallery-counter">'+(current+1)+' / '+images.length+'</div></div><div class="inspect-content"><div class="cat">'+p.c+'</div><h2>'+p.n+'</h2><div class="stars">'+stars(p.r)+' ('+p.r+')</div><p class="inspect-desc">'+(p.d||"Aucune description disponible.")+'</p><div class="current-color"><strong>Couleur :</strong> <span id="currentColor">'+(v.name||"Principal")+'</span></div><div class="variant-list">'+images.map((x,i)=>'<button type="button" class="variant-btn '+(i===current?"selected":"")+'" data-gallery-index="'+i+'">'+x.name+'</button>').join("")+'</div><button type="button" class="gold inspect-add" '+(p.s<=0?"disabled":"")+'>'+(p.s>0?"Ajouter au panier":"Indisponible")+'</button></div></div>';
+    m.querySelector(".prev").onclick=()=>{current=(current-1+images.length)%images.length;renderViewer()};
+    m.querySelector(".next").onclick=()=>{current=(current+1)%images.length;renderViewer()};
+    m.querySelectorAll(".variant-btn").forEach(b=>b.onclick=()=>{current=Number(b.dataset.galleryIndex);renderViewer()});
+    m.querySelector(".inspect-add")?.addEventListener("click",()=>{
+      const selected=images[current];
+      const variant=selected.name==="Principal"?null:selected.name;
+      add(p.id,variant);
+    });
+  };
   m.classList.add("show");
-  m.querySelectorAll(".variant-btn").forEach(b=>b.addEventListener("click",()=>{
-    m.querySelectorAll(".variant-btn").forEach(x=>x.classList.remove("selected"));
-    b.classList.add("selected");
-    const v=p.v[Number(b.dataset.variantIndex)];
-    if(v&&v.image_url)m.querySelector("#inspectImg").src=v.image_url;
-  }));
-  m.querySelector(".inspect-add")?.addEventListener("click",()=>{
-    const b=m.querySelector(".variant-btn.selected");
-    const variant=b?p.v[Number(b.dataset.variantIndex)]?.name:null;
-    add(p.id,variant);
-  });
+  renderViewer();
+
+  let touchStartX=0;
+  m.ontouchstart=e=>{touchStartX=e.changedTouches[0].clientX};
+  m.ontouchend=e=>{
+    const dx=e.changedTouches[0].clientX-touchStartX;
+    if(Math.abs(dx)>45){current=dx<0?(current+1)%images.length:(current-1+images.length)%images.length;renderViewer()}
+  };
 }
 
 function openImage(src,title){
