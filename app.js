@@ -10,12 +10,9 @@ const stars=r=>"★".repeat(Math.round(r))+"☆".repeat(5-Math.round(r));
 
 function card(p){
   let q=p.x||p.p;
-  let visual=p.img
-    ? '<button class="image-open" type="button" onclick="openImage('+JSON.stringify(p.img)+','+JSON.stringify(p.n)+')" aria-label="Agrandir '+p.n+'"><img src="'+p.img+'" alt="'+p.n+'"><span>⌕</span></button>'
-    : (p.e||"🛍️");
-  return '<article class="card"><div class="pic">'+visual+'</div><div class="body"><div class="cat">'+p.c+'</div><h3>'+p.n+'</h3><div class="stars">'+stars(p.r)+' ('+p.r+')</div><div class="price">'+(p.x?'<span class="old">'+money(p.p)+'</span>':"")+money(q)+'</div><div class="stock">'+(p.s>0?"Stock : "+p.s:"Rupture de stock")+'</div><button onclick="add(\''+p.id+'\')" '+(p.s<=0?"disabled":"")+'>'+(p.s>0?"Ajouter au panier":"Indisponible")+'</button></div></article>';
+  let visual=p.img?'<img src="'+p.img+'" alt="'+p.n+'">':(p.e||"🛍️");
+  return '<article class="card"><div class="pic">'+visual+'</div><div class="body"><div class="cat">'+p.c+'</div><h3>'+p.n+'</h3><div class="stars">'+stars(p.r)+' ('+p.r+')</div><div class="price">'+(p.x?'<span class="old">'+money(p.p)+'</span>':"")+money(q)+'</div><div class="stock">'+(p.s>0?"Stock : "+p.s:"Rupture de stock")+'</div><button type="button" class="add-btn" data-product-id="'+p.id+'" '+(p.s<=0?"disabled":"")+'>'+(p.s>0?"Ajouter au panier":"Indisponible")+'</button></div></article>';
 }
-
 
 function openImage(src,title){
   let m=document.getElementById("imageViewer");
@@ -45,6 +42,7 @@ function render(){
   $("#shopGrid").innerHTML=f.map(card).join("")||"<p>Aucun produit trouvé.</p>";
   $("#newGrid").innerHTML=P.filter(p=>p.new).slice(0,4).map(card).join("");
   $("#offerGrid").innerHTML=P.filter(p=>p.x).map(card).join("");
+  document.querySelectorAll(".add-btn").forEach(b=>b.addEventListener("click",()=>add(b.dataset.productId)));
   update();
 }
 
