@@ -11,7 +11,33 @@ const stars=r=>"★".repeat(Math.round(r))+"☆".repeat(5-Math.round(r));
 function card(p){
   let q=p.x||p.p;
   let visual=p.img?'<img src="'+p.img+'" alt="'+p.n+'">':(p.e||"🛍️");
-  return '<article class="card"><div class="pic">'+visual+'</div><div class="body"><div class="cat">'+p.c+'</div><h3>'+p.n+'</h3><div class="stars">'+stars(p.r)+' ('+p.r+')</div><div class="price">'+(p.x?'<span class="old">'+money(p.p)+'</span>':"")+money(q)+'</div><div class="stock">'+(p.s>0?"Stock : "+p.s:"Rupture de stock")+'</div><button type="button" class="add-btn" data-product-id="'+p.id+'" '+(p.s<=0?"disabled":"")+'>'+(p.s>0?"Ajouter au panier":"Indisponible")+'</button></div></article>';
+  return '<article class="card"><div class="pic">'+visual+'</div><div class="body"><div class="cat">'+p.c+'</div><h3>'+p.n+'</h3><div class="stars">'+stars(p.r)+' ('+p.r+')</div><div class="price">'+(p.x?'<span class="old">'+money(p.p)+'</span>':"")+money(q)+'</div><div class="stock">'+(p.s>0?"Stock : "+p.s:"Rupture de stock")+'</div><button type="button" class="inspect-btn" data-inspect-id="'+p.id+'">Inspecter</button><button type="button" class="add-btn" data-product-id="'+p.id+'" '+(p.s<=0?"disabled":"")+'>'+(p.s>0?"Ajouter au panier":"Indisponible")+'</button></div></article>';
+}
+
+function inspectProduct(id){
+  const p=P.find(x=>String(x.id)===String(id));
+  if(!p)return;
+  let m=document.getElementById("productViewer");
+  if(!m){
+    m=document.createElement("div");
+    m.id="productViewer";
+    document.body.appendChild(m);
+    m.addEventListener("click",e=>{if(e.target===m||e.target.closest(".product-close"))m.classList.remove("show")});
+  }
+  const firstImage=p.img||(p.v[0]&&p.v[0].image_url)||"";
+  m.innerHTML='<div class="product-modal"><button class="product-close" type="button">×</button><img id="inspectImg" src="'+firstImage+'" alt="'+p.n+'"><div class="inspect-content"><div class="cat">'+p.c+'</div><h2>'+p.n+'</h2><div class="stars">'+stars(p.r)+' ('+p.r+')</div><p class="inspect-desc">'+(p.d||"Aucune description disponible.")+'</p>'+(p.v.length?'<strong>Couleur :</strong><div class="variant-list">'+p.v.map((v,i)=>'<button type="button" class="variant-btn '+(i===0?"selected":"")+'" data-variant-index="'+i+'">'+v.name+'</button>').join("")+'</div>':"")+'<button type="button" class="gold inspect-add" '+(p.s<=0?"disabled":"")+'>'+(p.s>0?"Ajouter au panier":"Indisponible")+'</button></div></div>';
+  m.classList.add("show");
+  m.querySelectorAll(".variant-btn").forEach(b=>b.addEventListener("click",()=>{
+    m.querySelectorAll(".variant-btn").forEach(x=>x.classList.remove("selected"));
+    b.classList.add("selected");
+    const v=p.v[Number(b.dataset.variantIndex)];
+    if(v&&v.image_url)m.querySelector("#inspectImg").src=v.image_url;
+  }));
+  m.querySelector(".inspect-add")?.addEventListener("click",()=>{
+    const b=m.querySelector(".variant-btn.selected");
+    const variant=b?p.v[Number(b.dataset.variantIndex)]?.name:null;
+    add(p.id,variant);
+  });
 }
 
 function openImage(src,title){
@@ -53,8 +79,8 @@ async function loadProducts(){
     return;
   }
   P=data.map(p=>({
-    id:p.id,n:p.name,c:p.category,p:p.price_fcfa,x:p.promo_price_fcfa,
-    s:p.stock,r:Number(p.rating),new:p.is_new,img:p.image_url,e:"🛍️"
+    id:p.id,n:p.name,c:p.category,d:p.description||"",p:p.price_fcfa,x:p.promo_price_fcfa,
+    s:p.stock,r:Number(p.rating),new:p.is_new,img:p.image_url,v:Array.isArray(p.variants)?p.variants:[],e:"🛍️"
   }));
   render();
 }
@@ -81,6 +107,8 @@ function update(){
 }
 
 document.addEventListener("click",e=>{
+  const inspect=e.target.closest(".inspect-btn");
+  if(inspect){e.preventDefault();inspectProduct(inspect.dataset.inspectId);return;}
   const b=e.target.closest(".add-btn");
   if(!b||b.disabled)return;
   e.preventDefault();
@@ -110,6 +138,9 @@ $("#order").onclick=()=>{
 };
 $("#lang").onclick=()=>{$("#lang").textContent=$("#lang").textContent==="EN"?"FR":"EN"};
 loadProducts();
+const productViewerStyle=document.createElement("style");
+productViewerStyle.textContent='#productViewer{position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;padding:18px;overflow:auto}#productViewer.show{display:flex}.product-modal{position:relative;width:min(900px,96vw);max-height:92vh;overflow:auto;background:#111;border:1px solid #2b2b2b;border-radius:18px;display:grid;grid-template-columns:1fr 1fr;gap:24px;padding:22px}.product-modal>img{width:100%;height:min(65vh,520px);object-fit:contain;background:#090909;border-radius:12px}.product-close{position:absolute;right:12px;top:10px;z-index:2;width:40px;height:40px;border:0;border-radius:50%;background:#222;color:#fff;font-size:28px}.inspect-content{padding:25px 10px}.inspect-desc{color:#ccc;line-height:1.6}.variant-list{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 18px}.variant-btn{background:#171717;color:#fff;border:1px solid #444;border-radius:999px;padding:9px 14px}.variant-btn.selected{border-color:#ffd86a;color:#ffd86a}.inspect-add{width:100%;margin-top:12px}@media(max-width:700px){.product-modal{grid-template-columns:1fr;padding:14px}.product-modal>img{height:45vh}.inspect-content{padding:4px}}';
+document.head.appendChild(productViewerStyle);
 const imageViewerStyle=document.createElement("style");
 imageViewerStyle.textContent=`
 .image-open{position:relative;width:100%;height:100%;padding:0;border:0;background:none;cursor:zoom-in;display:block}
